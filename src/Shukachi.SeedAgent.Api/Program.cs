@@ -1,4 +1,5 @@
 using Microsoft.SemanticKernel;
+using Shukachi.SeedAgent.Api.Plugins;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,6 +9,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
+builder.Services.AddSingleton<KnowledgeStorePlugin>();
 
 var modelId = builder.Configuration["LLM_MODEL_ID"];
 var apiKey = builder.Configuration["LLM_MODEL_KEY"];
