@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using System.Text.Json;
 using Shukachi.SeedAgent.Api.Models;
 using Shukachi.SeedAgent.Api.Plugins;
 
@@ -14,13 +15,15 @@ namespace Shukachi.SeedAgent.Api.Controllers
         private readonly Kernel _kernel;
         private readonly IChatCompletionService _chatCompletion;
         private readonly OpenAIPromptExecutionSettings _openAIPromptExecutionSettings;
+        private readonly KnowledgeStorePlugin _knowledgeStorePlugin;
 
-
-        public TextController(Kernel kernel)
+        public TextController(Kernel kernel, KnowledgeStorePlugin knowledgeStorePlugin)
         {
             _kernel = kernel.Clone();
             _kernel.Plugins.AddFromType<KnowledgeStorePlugin>("KnowlegeStore");
+            _kernel.Plugins.AddFromType<ActPlugin>("Act");
             _chatCompletion = kernel.GetRequiredService<IChatCompletionService>();
+            _knowledgeStorePlugin = knowledgeStorePlugin;
 
             _openAIPromptExecutionSettings = new() 
             {
@@ -32,11 +35,18 @@ namespace Shukachi.SeedAgent.Api.Controllers
         [HttpPost("text")]
         public async Task<ActionResult<TextResponse>> PostText([FromBody] TextRequest request, CancellationToken cancellationToken)
         {
-            const string systemPrompt = "You are a helpful assistant that answers briefly.";
-
             var history = new ChatHistory();
-            history.AddSystemMessage(systemPrompt);
-            history.AddUserMessage(request.Text);
+            history.AddSystemMessage(GetSystemPromtp());
+            var userMessage = JsonSerializer.Serialize(new
+            {
+                uid = request.Uid,
+                text = request.Text
+            });
+            history.AddUserMessage(JsonSerializer.Serialize(new
+            {
+                uid = request.Uid,
+                text = request.Text
+            }));
 
             var result = await _chatCompletion.GetChatMessageContentAsync(
                 history,
@@ -53,5 +63,25 @@ namespace Shukachi.SeedAgent.Api.Controllers
 
             return Ok(response);
         }
+
+        private string GetSystemPromtp()
+        {
+            return @"
+Determine the user's intent from their message in Ukrainian. 
+The intent may be either providing information
+(e.g., facts or data such as ""ціна квартири 100 гривень"") or 
+requesting an action (e.g., commands such as ""сгенерувати документ""). 
+You cannot ask clarifying questions. 
+After identifying the intent, select and call the most appropriate tool for fulfilling the intent.
+Store and utilize all relevant knowledge you acquire to improve over time
+
+Consider every message carefully:  
+- First, analyze the user's message step-by-step to reason about their intent.  
+- Then, explicitly state the recognized intent and classification (information or action).  
+- Never start with the conclusion; always reason first, then present your conclusion.  
+- Never ask clarifying questions.  
+- If an action is required, specify which tool should be called and why..";
+        }
+
     }
 }

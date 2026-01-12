@@ -4,6 +4,8 @@ services:
     build:
       context: .
       dockerfile: Shukachi.SeedAgent.Api/Dockerfile
+    env_file:
+      - .env
   qdrant:
     image: qdrant/qdrant:latest
     ports:

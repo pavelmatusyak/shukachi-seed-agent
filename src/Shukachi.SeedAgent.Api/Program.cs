@@ -1,5 +1,7 @@
 using Microsoft.SemanticKernel;
+using Microsoft.Extensions.Options;
 using Shukachi.SeedAgent.Api.Plugins;
+using Shukachi.SeedAgent.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +12,21 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
 builder.Services.AddSingleton<KnowledgeStorePlugin>();
+builder.Services.AddSingleton<ActPlugin>();
+builder.Services.Configure<QdrantOptions>(options =>
+{
+    options.Url = builder.Configuration["QDRANT_URL"] ?? options.Url;
+    options.Collection = builder.Configuration["QDRANT_COLLECTION"] ?? options.Collection;
+    if (int.TryParse(builder.Configuration["QDRANT_VECTOR_SIZE"], out var vectorSize))
+    {
+        options.VectorSize = vectorSize;
+    }
+});
+builder.Services.AddHttpClient<QdrantClient>((sp, client) =>
+{
+    var options = sp.GetRequiredService<IOptions<QdrantOptions>>().Value;
+    client.BaseAddress = new Uri(options.Url);
+});
 
 var modelId = builder.Configuration["LLM_MODEL_ID"];
 var apiKey = builder.Configuration["LLM_MODEL_KEY"];

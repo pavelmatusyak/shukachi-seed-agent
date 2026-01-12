@@ -3,8 +3,8 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTP_PORTS=3000
-      - LLM_MODEL_ID=
-      - LLM_MODEL_KEY=
+      - LLM_MODEL_ID=${LLM_MODEL_ID}
+      - LLM_MODEL_KEY=${LLM_MODEL_KEY}
     ports:
       - "3000:3000"
     volumes:
