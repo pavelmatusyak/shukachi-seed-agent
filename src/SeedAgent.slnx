@@ -1,3 +1,6 @@
 <Solution>
+  <Project Path="docker-compose.dcproj">
+    <Build />
+  </Project>
   <Project Path="Shukachi.SeedAgent.Api/Shukachi.SeedAgent.Api.csproj" />
 </Solution>

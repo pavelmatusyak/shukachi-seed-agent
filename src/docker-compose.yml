@@ -1,0 +1,6 @@
+services:
+  shukachi.seedagent.api:
+    image: ${DOCKER_REGISTRY-}shukachiseedagentapi
+    build:
+      context: .
+      dockerfile: Shukachi.SeedAgent.Api/Dockerfile
