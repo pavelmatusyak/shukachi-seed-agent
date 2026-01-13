@@ -10,8 +10,16 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 {
     o.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
 });
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
 // Paths (relative to app base directory)
 var baseDir = AppContext.BaseDirectory;
@@ -54,18 +62,18 @@ app.MapGet("/health", () =>
     });
 });
 
-app.MapPost("/embed", (EmbedRequest req) =>
+IResult EmbedText(string? text, string mode)
 {
-    if (string.IsNullOrWhiteSpace(req.Text))
+    if (string.IsNullOrWhiteSpace(text))
         return Results.BadRequest(new { error = "text is required" });
 
-    var mode = (req.Mode ?? "passage").Trim().ToLowerInvariant();
-    var prefix = mode == "query" ? "query: " : "passage: ";
-    var text = prefix + req.Text;
+    var normalizedMode = mode.Trim().ToLowerInvariant();
+    var prefix = normalizedMode == "query" ? "query: " : "passage: ";
+    var fullText = prefix + text;
 
     // 1) Tokenize
     var enc = tokenizer.Encode(
-        text,
+        fullText,
         addSpecialTokens: true,
         input2: null,
         includeTypeIds: false,
@@ -154,7 +162,16 @@ app.MapPost("/embed", (EmbedRequest req) =>
         Dim = pooled.Length,
         Vector = pooled
     });
+}
+
+app.MapPost("/embed", (EmbedRequest req) =>
+{
+    var mode = req.Mode ?? "passage";
+    return EmbedText(req.Text, mode);
 });
+
+app.MapPost("/embed-doc", (EmbedRequest req) => EmbedText(req.Text, "passage"));
+app.MapPost("/embed-search", (EmbedRequest req) => EmbedText(req.Text, "query"));
 
 app.Lifetime.ApplicationStopping.Register(() =>
 {

@@ -1,4 +1,4 @@
-@baseUrl = http://localhost:5048
+@baseUrl = http://localhost:3001
 
 ###
 POST {{baseUrl}}/embed
