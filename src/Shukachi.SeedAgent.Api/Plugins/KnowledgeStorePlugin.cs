@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Shukachi.SeedAgent.Api.Services;
 
@@ -7,10 +8,12 @@ namespace Shukachi.SeedAgent.Api.Plugins
     public sealed class KnowledgeStorePlugin
     {
         private readonly QdrantClient _qdrantClient;
+        private readonly ILogger<KnowledgeStorePlugin> _logger;
 
-        public KnowledgeStorePlugin(QdrantClient qdrantClient)
+        public KnowledgeStorePlugin(QdrantClient qdrantClient, ILogger<KnowledgeStorePlugin> logger)
         {
             _qdrantClient = qdrantClient;
+            _logger = logger;
         }
 
         [KernelFunction("add_to_knowledge_store")]
@@ -28,7 +31,9 @@ namespace Shukachi.SeedAgent.Api.Plugins
 
         private async Task<string> StoreAndConfirmAsync(string text, string uid, CancellationToken cancellationToken)
         {
+            _logger.LogInformation("Storing message in Qdrant for uid {Uid}", uid);
             await _qdrantClient.StoreMessageAsync(text, uid, cancellationToken);
+            _logger.LogInformation("Stored message in Qdrant for uid {Uid}", uid);
             return $"Stored for {uid}: {text}";
         }
     }

@@ -20,8 +20,8 @@ namespace Shukachi.SeedAgent.Api.Controllers
         public TextController(Kernel kernel, KnowledgeStorePlugin knowledgeStorePlugin)
         {
             _kernel = kernel.Clone();
-            _kernel.Plugins.AddFromType<KnowledgeStorePlugin>("KnowlegeStore");
-            _kernel.Plugins.AddFromType<ActPlugin>("Act");
+            _kernel.Plugins.AddFromType<KnowledgeStorePlugin>("KnowlegeStore", kernel.Services);
+            _kernel.Plugins.AddFromType<ActPlugin>("Act", kernel.Services);
             _chatCompletion = kernel.GetRequiredService<IChatCompletionService>();
             _knowledgeStorePlugin = knowledgeStorePlugin;
 
@@ -37,11 +37,6 @@ namespace Shukachi.SeedAgent.Api.Controllers
         {
             var history = new ChatHistory();
             history.AddSystemMessage(GetSystemPromtp());
-            var userMessage = JsonSerializer.Serialize(new
-            {
-                uid = request.Uid,
-                text = request.Text
-            });
             history.AddUserMessage(JsonSerializer.Serialize(new
             {
                 uid = request.Uid,
@@ -69,7 +64,7 @@ namespace Shukachi.SeedAgent.Api.Controllers
             return @"
 Determine the user's intent from their message in Ukrainian. 
 The intent may be either providing information
-(e.g., facts or data such as ""ціна квартири 100 гривень"") or 
+(e.g., infomation, facts data or code examples such as ""ціна квартири 100 гривень"") or 
 requesting an action (e.g., commands such as ""сгенерувати документ""). 
 You cannot ask clarifying questions. 
 After identifying the intent, select and call the most appropriate tool for fulfilling the intent.

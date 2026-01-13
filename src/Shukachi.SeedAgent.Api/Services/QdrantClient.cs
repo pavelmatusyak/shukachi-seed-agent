@@ -1,90 +1,80 @@
-using System.Net;
-using System.Net.Http.Json;
-using System.Text.Json;
 using Microsoft.Extensions.Options;
+using Grpc.Core;
+using Qdrant.Client.Grpc;
+using QdrantSdkClient = Qdrant.Client.QdrantClient;
+using QdrantValue = Qdrant.Client.Grpc.Value;
 
 namespace Shukachi.SeedAgent.Api.Services
 {
     public sealed class QdrantClient
     {
-        private static readonly JsonSerializerOptions JsonOptions = new()
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
-
-        private readonly HttpClient _httpClient;
         private readonly QdrantOptions _options;
+        private readonly QdrantSdkClient _client;
 
-        public QdrantClient(HttpClient httpClient, IOptions<QdrantOptions> options)
+        public QdrantClient(IOptions<QdrantOptions> options)
         {
-            _httpClient = httpClient;
             _options = options.Value;
+            _client = new QdrantSdkClient(_options.GrpcHost, _options.GrpcPort);
         }
 
         public async Task StoreMessageAsync(string message, string uid, CancellationToken cancellationToken)
         {
             await EnsureCollectionAsync(cancellationToken);
 
-            var vector = new float[_options.VectorSize];
-            var payload = new Dictionary<string, object?>
-            {
-                ["uid"] = uid,
-                ["message"] = message,
-                ["created_at_utc"] = DateTimeOffset.UtcNow
-            };
+            var vector = new Vector();
+            vector.Data.AddRange(BuildVector());
 
-            var request = new
+            var point = new PointStruct
             {
-                points = new[]
-                {
-                    new
-                    {
-                        id = Guid.NewGuid().ToString("N"),
-                        vector,
-                        payload
-                    }
-                }
+                Id = new PointId { Uuid = Guid.NewGuid().ToString("D") },
+                Vectors = new Vectors { Vector = vector }
             };
+            point.Payload.Add("uid", new QdrantValue { StringValue = uid });
+            point.Payload.Add("message", new QdrantValue { StringValue = message });
+            point.Payload.Add("created_at_utc", new QdrantValue { StringValue = DateTimeOffset.UtcNow.ToString("O") });
 
-            using var response = await _httpClient.PostAsJsonAsync(
-                $"/collections/{_options.Collection}/points",
-                request,
-                JsonOptions,
-                cancellationToken);
-            response.EnsureSuccessStatusCode();
+            await _client.UpsertAsync(
+                _options.Collection,
+                new[] { point },
+                cancellationToken: cancellationToken);
+        }
+
+        public async Task<object> ScrollMessagesAsync(int limit, CancellationToken cancellationToken)
+        {
+            await EnsureCollectionAsync(cancellationToken);
+
+            var result = await _client.ScrollAsync(
+                _options.Collection,
+                limit: (uint)Math.Max(1, limit),
+                payloadSelector: true,
+                vectorsSelector: false,
+                cancellationToken: cancellationToken);
+
+            return result;
         }
 
         private async Task EnsureCollectionAsync(CancellationToken cancellationToken)
         {
-            using var getResponse = await _httpClient.GetAsync(
-                $"/collections/{_options.Collection}",
-                cancellationToken);
-
-            if (getResponse.IsSuccessStatusCode)
+            try
             {
-                return;
+                _ = await _client.GetCollectionInfoAsync(_options.Collection, cancellationToken: cancellationToken);
             }
-
-            if (getResponse.StatusCode != HttpStatusCode.NotFound)
+            catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
             {
-                getResponse.EnsureSuccessStatusCode();
+                await _client.CreateCollectionAsync(
+                    _options.Collection,
+                    new VectorParams
+                    {
+                        Size = (uint)_options.VectorSize,
+                        Distance = Distance.Cosine
+                    },
+                    cancellationToken: cancellationToken);
             }
+        }
 
-            var createRequest = new
-            {
-                vectors = new
-                {
-                    size = _options.VectorSize,
-                    distance = "Cosine"
-                }
-            };
-
-            using var createResponse = await _httpClient.PutAsJsonAsync(
-                $"/collections/{_options.Collection}",
-                createRequest,
-                JsonOptions,
-                cancellationToken);
-            createResponse.EnsureSuccessStatusCode();
+        private float[] BuildVector()
+        {
+            return new float[_options.VectorSize];
         }
     }
 }
