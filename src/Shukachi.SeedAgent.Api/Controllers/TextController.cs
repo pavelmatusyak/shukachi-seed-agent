@@ -22,6 +22,7 @@ namespace Shukachi.SeedAgent.Api.Controllers
             _kernel = kernel.Clone();
             _kernel.Plugins.AddFromType<KnowledgeStorePlugin>("KnowlegeStore", kernel.Services);
             _kernel.Plugins.AddFromType<ActPlugin>("Act", kernel.Services);
+            _kernel.Plugins.AddFromType<VectorStoreTextSearchPlugin>("VectorStoreTextSearch", kernel.Services);
             _chatCompletion = kernel.GetRequiredService<IChatCompletionService>();
             _knowledgeStorePlugin = knowledgeStorePlugin;
 

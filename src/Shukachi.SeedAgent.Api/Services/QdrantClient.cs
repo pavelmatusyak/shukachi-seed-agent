@@ -58,6 +58,37 @@ namespace Shukachi.SeedAgent.Api.Services
             return result;
         }
 
+        public async Task<SearchResponse> SearchMessagesAsync(
+            IReadOnlyList<float> vector,
+            string? uid,
+            int limit,
+            CancellationToken cancellationToken)
+        {
+            if (vector == null || vector.Count == 0)
+            {
+                throw new ArgumentException("Vector must be provided.", nameof(vector));
+            }
+
+            await EnsureCollectionAsync(vector.Count, cancellationToken);
+
+            Filter? filter = null;
+            if (!string.IsNullOrWhiteSpace(uid))
+            {
+                filter = Conditions.Match("uid", uid);
+            }
+
+            var result = await _client.SearchAsync(
+                _options.Collection,
+                vector.ToArray(),
+                filter: filter,
+                limit: (ulong)Math.Max(1, limit),
+                payloadSelector: true,
+                vectorsSelector: false,
+                cancellationToken: cancellationToken);
+
+            return result;
+        }
+
         private async Task EnsureCollectionAsync(int vectorSize, CancellationToken cancellationToken)
         {
             try

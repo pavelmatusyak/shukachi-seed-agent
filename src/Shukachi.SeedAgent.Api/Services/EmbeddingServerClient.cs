@@ -8,6 +8,11 @@ namespace Shukachi.SeedAgent.Api.Services
         Task<EmbedResponse> EmbedDocumentAsync(
             [Body] EmbedRequest request,
             CancellationToken cancellationToken = default);
+
+        [Post("/embed-search")]
+        Task<EmbedResponse> EmbedSearchAsync(
+            [Body] EmbedRequest request,
+            CancellationToken cancellationToken = default);
     }
 
     public sealed class EmbedRequest

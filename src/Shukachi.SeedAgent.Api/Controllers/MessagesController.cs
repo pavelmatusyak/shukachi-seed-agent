@@ -8,10 +8,12 @@ namespace Shukachi.SeedAgent.Api.Controllers
     public sealed class MessagesController : ControllerBase
     {
         private readonly QdrantClient _qdrantClient;
+        private readonly IEmbeddingServerClient _embeddingServerClient;
 
-        public MessagesController(QdrantClient qdrantClient)
+        public MessagesController(QdrantClient qdrantClient, IEmbeddingServerClient embeddingServerClient)
         {
             _qdrantClient = qdrantClient;
+            _embeddingServerClient = embeddingServerClient;
         }
 
         [HttpGet]
@@ -21,6 +23,40 @@ namespace Shukachi.SeedAgent.Api.Controllers
         {
             var result = await _qdrantClient.ScrollMessagesAsync(limit, cancellationToken);
             return Ok(result);
+        }
+
+        [HttpPost("search")]
+        public async Task<ActionResult<object>> SearchMessages(
+            [FromBody] SearchMessagesRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.Query))
+            {
+                return BadRequest(new { error = "query is required" });
+            }
+
+            var embed = await _embeddingServerClient.EmbedSearchAsync(
+                new EmbedRequest { Text = request.Query },
+                cancellationToken);
+
+            if (embed?.Vector == null || embed.Vector.Length == 0)
+            {
+                return StatusCode(502, new { error = "embedding server returned empty vector" });
+            }
+
+            var result = await _qdrantClient.SearchMessagesAsync(
+                embed.Vector,
+                null,
+                request.Limit ?? 5,
+                cancellationToken);
+
+            return Ok(result);
+        }
+
+        public sealed class SearchMessagesRequest
+        {
+            public string? Query { get; set; }
+            public int? Limit { get; set; }
         }
     }
 }

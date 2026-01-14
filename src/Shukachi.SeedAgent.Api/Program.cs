@@ -13,6 +13,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
 builder.Services.AddSingleton<KnowledgeStorePlugin>();
 builder.Services.AddSingleton<ActPlugin>();
+builder.Services.AddSingleton<VectorStoreTextSearchPlugin>();
 builder.Services.AddRefitClient<IEmbeddingServerClient>()
     .ConfigureHttpClient(client =>
     {
