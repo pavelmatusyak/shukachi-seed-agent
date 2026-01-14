@@ -2,17 +2,23 @@ using System.ComponentModel;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Shukachi.SeedAgent.Api.Services;
+using Refit;
 
 namespace Shukachi.SeedAgent.Api.Plugins
 {
     public sealed class KnowledgeStorePlugin
     {
         private readonly QdrantClient _qdrantClient;
+        private readonly IEmbeddingServerClient _embeddingServerClient;
         private readonly ILogger<KnowledgeStorePlugin> _logger;
 
-        public KnowledgeStorePlugin(QdrantClient qdrantClient, ILogger<KnowledgeStorePlugin> logger)
+        public KnowledgeStorePlugin(
+            QdrantClient qdrantClient,
+            IEmbeddingServerClient embeddingServerClient,
+            ILogger<KnowledgeStorePlugin> logger)
         {
             _qdrantClient = qdrantClient;
+            _embeddingServerClient = embeddingServerClient;
             _logger = logger;
         }
 
@@ -32,9 +38,36 @@ namespace Shukachi.SeedAgent.Api.Plugins
         private async Task<string> StoreAndConfirmAsync(string text, string uid, CancellationToken cancellationToken)
         {
             _logger.LogInformation("Storing message in Qdrant for uid {Uid}", uid);
-            await _qdrantClient.StoreMessageAsync(text, uid, cancellationToken);
+            var vector = await GetEmbeddingAsync(text, cancellationToken);
+            await _qdrantClient.StoreMessageAsync(text, uid, vector, cancellationToken);
             _logger.LogInformation("Stored message in Qdrant for uid {Uid}", uid);
             return $"Stored for {uid}: {text}";
+        }
+
+        private async Task<float[]> GetEmbeddingAsync(string text, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var payload = await _embeddingServerClient.EmbedDocumentAsync(
+                    new EmbedRequest { Text = text },
+                    cancellationToken);
+
+                if (payload?.Vector == null || payload.Vector.Length == 0)
+                {
+                    throw new InvalidOperationException("Embedding server returned an empty vector.");
+                }
+
+                return payload.Vector;
+            }
+            catch (ApiException ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Embedding server returned {StatusCode}: {Content}",
+                    (int)ex.StatusCode,
+                    ex.Content ?? string.Empty);
+                throw new InvalidOperationException("Embedding server request failed.", ex);
+            }
         }
     }
 }

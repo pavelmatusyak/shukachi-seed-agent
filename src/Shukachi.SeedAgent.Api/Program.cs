@@ -1,4 +1,5 @@
 using Microsoft.SemanticKernel;
+using Refit;
 using Shukachi.SeedAgent.Api.Plugins;
 using Shukachi.SeedAgent.Api.Services;
 
@@ -12,6 +13,13 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
 builder.Services.AddSingleton<KnowledgeStorePlugin>();
 builder.Services.AddSingleton<ActPlugin>();
+builder.Services.AddRefitClient<IEmbeddingServerClient>()
+    .ConfigureHttpClient(client =>
+    {
+        var baseUrl = builder.Configuration["EMBEDDING_SERVER_URL"]
+            ?? "http://shukachi.seedagent.embeddingserver:3001";
+        client.BaseAddress = new Uri(baseUrl);
+    });
 builder.Services.Configure<QdrantOptions>(options =>
 {
     options.GrpcHost = builder.Configuration["QDRANT_GRPC_HOST"] ?? options.GrpcHost;

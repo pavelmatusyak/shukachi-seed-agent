@@ -17,17 +17,22 @@ namespace Shukachi.SeedAgent.Api.Services
             _client = new QdrantSdkClient(_options.GrpcHost, _options.GrpcPort);
         }
 
-        public async Task StoreMessageAsync(string message, string uid, CancellationToken cancellationToken)
+        public async Task StoreMessageAsync(string message, string uid, IReadOnlyList<float> vector, CancellationToken cancellationToken)
         {
-            await EnsureCollectionAsync(cancellationToken);
+            if (vector == null || vector.Count == 0)
+            {
+                throw new ArgumentException("Vector must be provided.", nameof(vector));
+            }
 
-            var vector = new Vector();
-            vector.Data.AddRange(BuildVector());
+            await EnsureCollectionAsync(vector.Count, cancellationToken);
+
+            var qdrantVector = new Vector();
+            qdrantVector.Data.AddRange(vector);
 
             var point = new PointStruct
             {
                 Id = new PointId { Uuid = Guid.NewGuid().ToString("D") },
-                Vectors = new Vectors { Vector = vector }
+                Vectors = new Vectors { Vector = qdrantVector }
             };
             point.Payload.Add("uid", new QdrantValue { StringValue = uid });
             point.Payload.Add("message", new QdrantValue { StringValue = message });
@@ -41,7 +46,7 @@ namespace Shukachi.SeedAgent.Api.Services
 
         public async Task<object> ScrollMessagesAsync(int limit, CancellationToken cancellationToken)
         {
-            await EnsureCollectionAsync(cancellationToken);
+            await EnsureCollectionAsync(_options.VectorSize, cancellationToken);
 
             var result = await _client.ScrollAsync(
                 _options.Collection,
@@ -53,7 +58,7 @@ namespace Shukachi.SeedAgent.Api.Services
             return result;
         }
 
-        private async Task EnsureCollectionAsync(CancellationToken cancellationToken)
+        private async Task EnsureCollectionAsync(int vectorSize, CancellationToken cancellationToken)
         {
             try
             {
@@ -65,16 +70,11 @@ namespace Shukachi.SeedAgent.Api.Services
                     _options.Collection,
                     new VectorParams
                     {
-                        Size = (uint)_options.VectorSize,
+                        Size = (uint)vectorSize,
                         Distance = Distance.Cosine
                     },
                     cancellationToken: cancellationToken);
             }
-        }
-
-        private float[] BuildVector()
-        {
-            return new float[_options.VectorSize];
         }
     }
 }

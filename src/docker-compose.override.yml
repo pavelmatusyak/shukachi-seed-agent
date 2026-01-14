@@ -5,6 +5,8 @@ services:
       - ASPNETCORE_HTTP_PORTS=3000
       - LLM_MODEL_ID=${LLM_MODEL_ID}
       - LLM_MODEL_KEY=${LLM_MODEL_KEY}
+      - QDRANT_VECTOR_SIZE=384
+      - EMBEDDING_SERVER_URL=http://shukachi.seedagent.embeddingserver:3001
     ports:
       - "3000:3000"
     volumes:
