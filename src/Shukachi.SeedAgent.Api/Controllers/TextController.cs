@@ -58,6 +58,7 @@ namespace Shukachi.SeedAgent.Api.Controllers
             return Ok(response);
         }
 
+        private static async Task WriteResponseLogAsync(
             TextRequest request,
             TextResponse response,
             CancellationToken cancellationToken)
