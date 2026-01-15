@@ -5,6 +5,7 @@ using Microsoft.SemanticKernel.Connectors.OpenAI;
 using System.Text.Json;
 using Shukachi.SeedAgent.Api.Models;
 using Shukachi.SeedAgent.Api.Plugins;
+using System.IO;
 
 namespace Shukachi.SeedAgent.Api.Controllers
 {
@@ -50,14 +51,94 @@ namespace Shukachi.SeedAgent.Api.Controllers
                 kernel: _kernel,
                 cancellationToken: cancellationToken);
 
-            var response = new TextResponse
-            {
-                Response = result.Content ?? string.Empty,
-                References = [],
-                Reasoning = null
-            };
+            var response = ParseTextResponse(result.Content);
+            await WriteResponseLogAsync(request, response, cancellationToken);
+            WriteResponseConsole(request, response);
 
             return Ok(response);
+        }
+
+            TextRequest request,
+            TextResponse response,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var folderPath = Path.Combine(AppContext.BaseDirectory, "text-responses");
+                Directory.CreateDirectory(folderPath);
+
+                var fileName = $"{DateTimeOffset.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}.json";
+                var filePath = Path.Combine(folderPath, fileName);
+
+                var payload = new
+                {
+                    request,
+                    response
+                };
+
+                var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
+                {
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                });
+                await System.IO.File.WriteAllTextAsync(filePath, json, cancellationToken);
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        private static void WriteResponseConsole(TextRequest request, TextResponse response)
+        {
+            try
+            {
+                var payload = new
+                {
+                    request,
+                    response
+                };
+
+                var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
+                {
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+                });
+                Console.WriteLine(json);
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        private static TextResponse ParseTextResponse(string? content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                return new TextResponse();
+            }
+
+            try
+            {
+                var parsed = JsonSerializer.Deserialize<TextResponse>(
+                    content,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                if (parsed != null)
+                {
+                    parsed.Response ??= string.Empty;
+                    parsed.References ??= [];
+                    parsed.Reasoning ??= string.Empty;
+                    return parsed;
+                }
+            }
+            catch (JsonException)
+            {
+            }
+
+            return new TextResponse
+            {
+                Response = content,
+                References = [],
+                Reasoning = string.Empty
+            };
         }
 
         private string GetSystemPromtp()
@@ -76,8 +157,16 @@ Consider every message carefully:
 - Then, explicitly state the recognized intent and classification (information or action).  
 - Never start with the conclusion; always reason first, then present your conclusion.  
 - Never ask clarifying questions.  
-- If an action is required, specify which tool should be called and why..";
+- If an action is required, specify which tool should be called and why..
+
+The responseshould be in the format JSON must follow this schema:
+{
+  ""response"": ""string"",
+  ""references"": [""uuid""],
+  ""reasoning"": ""string""
+}";
         }
 
     }
 }
+

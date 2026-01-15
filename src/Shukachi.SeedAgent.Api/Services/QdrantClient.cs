@@ -58,7 +58,7 @@ namespace Shukachi.SeedAgent.Api.Services
             return result;
         }
 
-        public async Task<SearchResponse> SearchMessagesAsync(
+        public async Task<IReadOnlyList<ScoredPoint>> SearchMessagesAsync(
             IReadOnlyList<float> vector,
             string? uid,
             int limit,
@@ -74,7 +74,7 @@ namespace Shukachi.SeedAgent.Api.Services
             Filter? filter = null;
             if (!string.IsNullOrWhiteSpace(uid))
             {
-                filter = Conditions.Match("uid", uid);
+                filter = Conditions.MatchKeyword("uid", uid);
             }
 
             var result = await _client.SearchAsync(

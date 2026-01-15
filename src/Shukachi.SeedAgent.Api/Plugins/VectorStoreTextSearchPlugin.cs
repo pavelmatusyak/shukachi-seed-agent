@@ -41,7 +41,7 @@ namespace Shukachi.SeedAgent.Api.Plugins
             var vector = await GetEmbeddingAsync(query, cancellationToken);
             var result = await _qdrantClient.SearchMessagesAsync(vector, null, limit, cancellationToken);
 
-            var hits = result.Result.Select(point => new SearchHit
+            var hits = result.Select(point => new SearchHit
             {
                 Score = point.Score,
                 Message = GetPayloadString(point, "message"),
