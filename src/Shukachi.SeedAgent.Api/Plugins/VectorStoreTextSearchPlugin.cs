@@ -38,6 +38,11 @@ namespace Shukachi.SeedAgent.Api.Plugins
                 return "[]";
             }
 
+            _logger.LogInformation(
+                "Search knowledge store with query {Query} and limit {Limit}",
+                query,
+                limit);
+
             var vector = await GetEmbeddingAsync(query, cancellationToken);
             var result = await _qdrantClient.SearchMessagesAsync(vector, null, limit, cancellationToken);
 

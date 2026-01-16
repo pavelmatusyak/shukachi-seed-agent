@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
@@ -8,6 +9,7 @@ namespace Shukachi.SeedAgent.Api.Plugins
     public sealed class ActPlugin
     {
         private readonly Kernel _kernel;
+        private readonly ILogger<ActPlugin> _logger;
 
         private const string SystemPrompt = @"You are SeedAgent, a tabula-rasa assistant.
 
@@ -68,10 +70,11 @@ IMPORTANT:
 If the task asks for an output (code/text/number), you must produce it only when Evidence is sufficient.
 If you cannot find enough information after 3 searches, ask a clarification question instead of guessing.";
 
-        public ActPlugin(Kernel kernel)
+        public ActPlugin(Kernel kernel, ILogger<ActPlugin> logger)
         {
             _kernel = kernel.Clone();
             _kernel.Plugins.AddFromType<VectorStoreTextSearchPlugin>("VectorStoreTextSearch", kernel.Services);
+            _logger = logger;
         }
 
         [KernelFunction("act_on_task")]
@@ -81,6 +84,7 @@ If you cannot find enough information after 3 searches, ask a clarification ques
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            _logger.LogInformation("Act plugin invoked with task: {Task}", task);
             return ActWithKnowledgeAsync(task, cancellationToken);
         }
 

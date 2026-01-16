@@ -6,6 +6,28 @@ services:
       dockerfile: Shukachi.SeedAgent.Api/Dockerfile
     env_file:
       - .env
+    depends_on:
+      - otel-collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otel-collector-config.yml"]
+    volumes:
+      - ./otel-collector-config.yml:/etc/otel-collector-config.yml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    depends_on:
+      - seq
+  seq:
+    image: datalust/seq:latest
+    environment:
+      - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_NOAUTHENTICATION=true
+    ports:
+      - "8081:80"
+      - "5341:5341"
+    volumes:
+      - seq_data:/data
   shukachi.seedagent.embeddingserver:
     image: ${DOCKER_REGISTRY-}shukachiseedagentembeddingserver
     build:
@@ -23,3 +45,4 @@ services:
 
 volumes:
   qdrant_data:
+  seq_data:

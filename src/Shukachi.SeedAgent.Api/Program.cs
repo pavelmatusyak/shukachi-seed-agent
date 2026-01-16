@@ -1,11 +1,27 @@
 using Microsoft.SemanticKernel;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Refit;
+using Serilog;
+using Serilog.Events;
 using Shukachi.SeedAgent.Api.Plugins;
 using Shukachi.SeedAgent.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+
+var seqServerUrl = builder.Configuration["SEQ_SERVER_URL"] ?? "http://seq:5341";
+builder.Host.UseSerilog((context, services, loggerConfiguration) =>
+{
+    loggerConfiguration
+        .MinimumLevel.Information()
+        .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+        .MinimumLevel.Override("System", LogEventLevel.Warning)
+        .Enrich.FromLogContext()
+        .WriteTo.Seq(seqServerUrl);
+});
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -45,6 +61,22 @@ if (string.IsNullOrWhiteSpace(modelId) || string.IsNullOrWhiteSpace(apiKey))
 
 builder.Services.AddKernel()
     .AddOpenAIChatCompletion(modelId, apiKey);
+
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource =>
+        resource.AddService(builder.Environment.ApplicationName))
+    .WithTracing(tracing =>
+        tracing.AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddSource("Microsoft.SemanticKernel")
+            .AddOtlpExporter())
+    .WithMetrics(metrics =>
+        metrics.AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddRuntimeInstrumentation()
+            .AddProcessInstrumentation()
+            .AddMeter("Microsoft.SemanticKernel")
+            .AddOtlpExporter());
 
 var app = builder.Build();
 

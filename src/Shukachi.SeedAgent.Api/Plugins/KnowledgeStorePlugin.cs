@@ -32,6 +32,10 @@ namespace Shukachi.SeedAgent.Api.Plugins
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            _logger.LogInformation(
+                "Add knowledge store item with uid {Uid} and text {Text}",
+                uid,
+                text);
             return StoreAndConfirmAsync(text, uid, cancellationToken);
         }
 

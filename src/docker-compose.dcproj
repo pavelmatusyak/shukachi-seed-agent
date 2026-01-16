@@ -10,6 +10,7 @@
       <DependentUpon>docker-compose.yml</DependentUpon>
     </None>
     <None Include="docker-compose.yml" />
+    <None Include="otel-collector-config.yml" />
     <None Include=".dockerignore" />
   </ItemGroup>
 </Project>

@@ -7,6 +7,10 @@ services:
       - LLM_MODEL_KEY=${LLM_MODEL_KEY}
       - QDRANT_VECTOR_SIZE=384
       - EMBEDDING_SERVER_URL=http://shukachi.seedagent.embeddingserver:3001
+      - SEQ_SERVER_URL=http://seq:5341
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_SERVICE_NAME=shukachi.seedagent.api
     ports:
       - "3000:3000"
     volumes:
