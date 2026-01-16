@@ -89,6 +89,19 @@ namespace Shukachi.SeedAgent.Api.Services
             return result;
         }
 
+        public async Task<bool> DeleteMessagesCollectionAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                await _client.DeleteCollectionAsync(_options.Collection, cancellationToken: cancellationToken);
+                return true;
+            }
+            catch (RpcException ex) when (ex.StatusCode == StatusCode.NotFound)
+            {
+                return false;
+            }
+        }
+
         private async Task EnsureCollectionAsync(int vectorSize, CancellationToken cancellationToken)
         {
             try

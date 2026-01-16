@@ -53,6 +53,18 @@ namespace Shukachi.SeedAgent.Api.Controllers
             return Ok(result);
         }
 
+        [HttpDelete("collection")]
+        public async Task<IActionResult> DeleteMessagesCollection(CancellationToken cancellationToken = default)
+        {
+            var deleted = await _qdrantClient.DeleteMessagesCollectionAsync(cancellationToken);
+            if (!deleted)
+            {
+                return NotFound(new { error = "collection not found" });
+            }
+
+            return NoContent();
+        }
+
         public sealed class SearchMessagesRequest
         {
             public string? Query { get; set; }

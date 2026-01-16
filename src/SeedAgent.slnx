@@ -3,4 +3,5 @@
     <Build />
   </Project>
   <Project Path="Shukachi.SeedAgent.Api/Shukachi.SeedAgent.Api.csproj" />
+  <Project Path="Shukachi.SeedAgent.EmbeddingServer/Shukachi.SeedAgent.EmbeddingServer.csproj" />
 </Solution>
